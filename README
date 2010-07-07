@@ -1,13 +1,39 @@
 MQProxy
 =======
 
-Introduction goes here.
+	Connect to Map Quest's API to get:
+		* geocode address
+		* get route from one geocoded address to another
+		* get distance between 2 addresses
+		* get county address is located in
+
+
+To initialize:
+	Edit mq_proxy_config.yml in the config directory
 
 
 Example
 =======
 
-Example goes here.
+Set up the addresses:
+
+	address1 = {"PostalCode" => "<zip1>", "Street" => "<street1>", "AdminArea1" => "US", "AdminArea3" => "<state1>", "AdminArea5" => "<city1>"}
+
+	address2 = {"PostalCode" => "<zip2>", "Street" => "<street2>", "AdminArea1" => "US", "AdminArea3" => "<state2>", "AdminArea5" => "<city2>"}
+
+
+To get route:
+
+	proxy = MQProxy.new
+	route = proxy.get_route(address1, address2)
+	
+	returns xml directions from Map Quest
+	
+To get distance from route:
+	
+	distance = proxy.get_distance(route)
+	
+	returns real number of distance
 
 
 Copyright (c) 2009 [name of plugin creator], released under the MIT license

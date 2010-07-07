@@ -9,8 +9,8 @@ class Zip2Tax
   
   private
     def lookup(zip)
-      url = "http://www.zip2tax.com/Link/Lookup_BlueIceberg_XML.asp"
-      password = "sw11yn"
+      url = "http://www.zip2tax.com/Link/<enter specialized path here>"
+      password = "<enter password here>"
       url = url + "?pwd=" + password + "&zip=" + zip.to_s
     
       sname = "www.zip2tax.com"
