@@ -1,18 +1,17 @@
 # MQProxy
 
 class MQProxy
-    
-  def initialize()
-    @config_path = RAILS_ROOT + '/config/mq_proxy_config.yml'
-  end
+  attr_reader :config_path  
   
-  def config_path
-    return @config_path
+  def initialize(config_path)
+    @config_path = config_path || RAILS_ROOT + '/config/mq_proxy_config.yml'
   end
   
   def get_county(address = {})
-    geo = XML::Document.string(geocode_address(address))
-    return geo.root.find_first("LocationCollection").find_first("GeoAddress").find_first("AdminArea4").content
+    status, response = geocode_address(address)
+    return string unless status
+    geo = JSON.parse(response)
+    return geo['results'][0]['locations'][0]['adminArea4']
   end
   
   def get_distance(route = '')
@@ -29,183 +28,110 @@ class MQProxy
   end
   
   def get_route(source = {}, destination = {}, options = {})
-    source_geo = XML::Document.string(geocode_address(source))
-    destination_geo = XML::Document.string(geocode_address(destination))
-    addresses = generate_route_xml(source_geo,destination_geo)
+    status, string = geocode_address(source, options)
+    return string unless status
+    source_geo = JSON.parse(string)['results'][0]['locations'][0]
+    status, string = geocode_address(destination, options)
+    return string unless status
+    destination_geo = JSON.parse(string)['results'][0]['locations'][0]
+    addresses = generate_route_json(source_geo,destination_geo)
     return route_addresses(addresses)
   end
-
+  
   def get_lat_long(data = {}, options = {})
-    res = XML::Document.string(geocode_address(data, options))
+    status, string = geocode_address(data, options)
+    return string unless status
+    res = XML::Document.string(string)
     return res.root.find_first("LocationCollection").find_first("GeoAddress").find_first("LatLng").to_a
   end
-
   
-  def get_authentication
-    return get_client_id, get_password
-  end
-
-  def get_client_id
-    return YAML.load(ERB.new(File.read(@config_path)).result).symbolize_keys[:clientid].to_s
-  end
-
-  def get_password
-    return YAML.load(ERB.new(File.read(@config_path)).result).symbolize_keys[:password]
-  end
-  
-  def authenticate_xml_document(doc)
-    root = doc.root
-    clientId, password1 = get_authentication
-    if clientId.blank? 
-      errorString = "No clientid set in the proxy page"
-      statusCode = "500"
-      raise errorString
-    end
-    authentication = XML::Node.new("Authentication")
-    authentication["Version"] = "2"
-    clientid = XML::Node.new("ClientId")
-    password = XML::Node.new("Password")
-    clientid.content = "#{clientId}"
-    password.content = password1 #"x9Z7A6z5" #password
-    authentication << clientid
-    authentication << password
-    root << authentication
-    return doc
-  end
-  
-  def generate_route_xml(source, destination)
-    doc = XML::Document.new
-    doc.root = XML::Node.new('DoRoute')
-    root = doc.root
-    root['Version'] = '2'
-    collection = XML::Node.new('LocationCollection')
-    collection['Count'] = '2'
-    root << collection
-    collection << doc.import(source.root.first.first)
-    collection << doc.import(destination.root.first.first)
-    
-    options = XML::Node.new('RouteOptions')
-    options['Version'] = '3'
-    root << options 
-    
-    doc = authenticate_xml_document doc
-    
-    return doc
-  end
-  
-  def generate_geocode_xml(elements = {}) #:nodoc:
-    doc = XML::Document.new()
-    doc.root = XML::Node.new('Geocode')
-    root = doc.root
-    root["Version"] = "1"
-    elements.each do |k,v|
-      node = XML::Node.new(k)
-      root << node
-      v.each do |i,m|
-        subnode = XML::Node.new(i)
-        subnode.content = m 
-        node << subnode
-      end
-    end
-
-    doc = authenticate_xml_document doc
-    
-    return doc
-  end
-  
-  def handle_response(response)
-    case response
-    when Net::HTTPSuccess then return MQProxySuccessResponse.new(response)
-    when Net::HTTPClientError then return MQProxyNotFoundResponse.new(response)
-    when Net::HTTPServerError then return MQProxyServerErrorResponse.new(response)
-    else
-      return false
-    end
-  end
-  
-  def route_addresses(addresses, options = {})
-      # default url options for mapquest
-      options[:method] ||= 'POST'
-      options[:port] ||= 80
-      options[:name] ||= 'route.free.mapquest.com'
-      options[:path] ||= 'mq'
-
-      xmlInputString = ''
-
-     # this begin is the begin for rescue in the last which will handle all raise 
-     begin  
-
-       errorString = ""
-       statusCode = ""
-       
-       xmlInputString = addresses.to_s
-
-       url = "http://"+options[:name]+":"+options[:port].to_s+"/"+options[:path]+"/mqserver.dll?e=5"
-
-       headers = {"Content-Type" => "text/xml; charset=utf-8"}
-
-       Net::HTTP.start(options[:name], options[:port]) { |http|  
-         http.request_post(url, xmlInputString,headers) {|response|
-           strResp = ""
-           response.read_body do |str|   # read body now
-             strResp = strResp + str           
-           end
-
-           # return "#{response.code} #{response.message}" if response.code != 200
-           return strResp
-         } 
-       }
-
-     rescue Exception => msg
-       if errorString == "" then
-          errorString = "Connection cannot be established. #{msg}"
-          statusCode = "404"
-       else
-          errorString = msg      
-       end
-       return "#{errorString} #{statusCode}"
-
-     end 
-  end
-
   def geocode_address(data = {}, options = {})
     # return if data is blank
-    return "Please enter data" if data.blank?
-    return "Please enter information for <Address>" if data["Address"].blank?
+    return false, "Please enter data" if data.blank?
+    return false, "Please enter information for <Address>" if data["Address"].blank?
 
-    # ensures that data is sent to mapquest in correct order
-    mq_data = ActiveSupport::OrderedHash.new
-    mq_data["Address"] = data["Address"]
-    mq_data["AutoGeocodeCovSwitch"] = data["Address"]
-
-
-    # default url options for mapquest
-    options[:method] ||= 'POST'
-    options[:port] ||= 80
-    options[:name] ||= 'geocode.free.mapquest.com'
-    options[:path] ||= 'mq'
-
-    xmlInputString = ''
-
-    doc = generate_geocode_xml mq_data
-
+    doc = JSON.generate({:location => data['Address']})
     xmlInputString = doc.to_s
-
-    url = "http://"+options[:name]+":"+options[:port].to_s+"/"+options[:path]+"/mqserver.dll?e=5"
-
-    headers = {"Content-Type" => "text/xml; charset=utf-8"}
-
-    Net::HTTP.start(options[:name], options[:port]) { |http|  
-      http.request_post(url, xmlInputString,headers) {|response|
-        strResp = ""
-        response.read_body do |str|   # read body now
-          strResp = strResp + str           
-        end
-         
-        return strResp
-      } 
-    }
+    return true, send_to_map_quest(xmlInputString, options = {}).body
+    
   end
+  
+  private
+    def get_authentication
+      return get_client_id, get_password
+    end
+
+    def get_client_id
+      return YAML.load(File.open(@config_path))['clientid']
+    end
+
+    def get_password
+      return YAML.load(File.read(@config_path))['password']
+    end
+    
+    def get_app_key
+      return YAML.load(File.read(@config_path))['appkey']
+    end
+  
+    def generate_route_json(source, destination)
+      doc = {:locations => [source, destination]}
+      doc = JSON.generate(doc)
+      return doc
+    end
+  
+    def handle_response(response)
+      case response
+      when Net::HTTPSuccess then return MQProxySuccessResponse.new(response)
+      when Net::HTTPClientError then return MQProxyNotFoundResponse.new(response)
+      when Net::HTTPServerError then return MQProxyServerErrorResponse.new(response)
+      else
+        return false
+      end
+    end
+  
+    def route_addresses(addresses, options = {})
+
+        xmlInputString = addresses.to_s
+        
+        options[:path] = 'directions/v1/route'
+      
+        return send_to_map_quest(xmlInputString, options)
+
+    end
+  
+    def send_to_map_quest(xmlInputString, options)
+      # this begin is the begin for rescue in the last which will handle all raise 
+      begin  
+
+        errorString = ""
+        statusCode = ""
+      
+        # default url options for mapquest
+        options[:method] ||= 'POST'
+        options[:port] ||= 80
+        options[:name] ||= 'www.mapquestapi.com'
+        options[:path] ||= 'geocoding/v1/address'
+        
+        url = URI.parse("http://"+options[:name]+"/"+options[:path] +"?key=#{get_app_key}")
+        headers = {"Content-Type" => "text/xml; charset=utf-8"}
+        http = Net::HTTP.new(url.host, url.port)
+        http.set_debug_output $stderr
+        res = http.start {  
+                  http.post(url.request_uri ,xmlInputString,headers)
+        }
+
+      rescue Exception => msg
+        if errorString == "" then
+           errorString = "Connection cannot be established. #{msg}"
+           statusCode = "404"
+           raise 
+        else
+           errorString = msg      
+        end
+        return "#{errorString} #{statusCode}"
+
+      end
+    end
 end
 
 class MQProxyResponse
