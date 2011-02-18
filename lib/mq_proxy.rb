@@ -1,62 +1,42 @@
 # MQProxy
+require 'json'
+require 'net/http'
 
 class MQProxy
   attr_reader :config_path  
   
-  def initialize(config_path)
-    @config_path = config_path || RAILS_ROOT + '/config/mq_proxy_config.yml'
+  def initialize()
   end
   
-  def get_county(address = {})
-    status, response = geocode_address(address)
-    return string unless status
-    geo = JSON.parse(response)
-    return geo['results'][0]['locations'][0]['adminArea4']
+  def get_route(source, destination, options = {})
+    addresses = generate_route_json(source,destination, options[:mq_options])
+    return @route = JSON.parse(route_addresses(addresses,options))
   end
   
-  def get_distance(route = '')
-    return false if route.blank?
-    
-    doc = XML::Document.string(route)
-    root = doc.root
-    maneuvers = root.first.find_first('TrekRoutes').find_first('TrekRoute').find_first('Maneuvers')
-    total = 0.0
-    maneuvers.each do |maneuver|
-      total += maneuver.find_first('Distance').content.to_f
-    end
-    return total
+  def get_distance
+    return {:status => false, :error => "Route blank, please get a route."} if @route.nil?
+    return @route['route']['distance']
   end
   
-  def get_route(source = {}, destination = {}, options = {})
-    status, string = geocode_address(source, options)
-    return string unless status
-    source_geo = JSON.parse(string)['results'][0]['locations'][0]
-    status, string = geocode_address(destination, options)
-    return string unless status
-    destination_geo = JSON.parse(string)['results'][0]['locations'][0]
-    addresses = generate_route_json(source_geo,destination_geo)
-    return route_addresses(addresses)
+  def get_lat_lng(address, options ={})
+    response = geocode_address(address, options)
+    return response[:error] unless response[:status]
+    doc = JSON.parse(response[:data])
+    return doc['results'].first['locations'].first['latLng']
   end
   
-  def get_lat_long(data = {}, options = {})
-    status, string = geocode_address(data, options)
-    return string unless status
-    res = XML::Document.string(string)
-    return res.root.find_first("LocationCollection").find_first("GeoAddress").find_first("LatLng").to_a
-  end
-  
-  def geocode_address(data = {}, options = {})
+  def geocode_address(address, options = {})
     # return if data is blank
-    return false, "Please enter data" if data.blank?
-    return false, "Please enter information for <Address>" if data["Address"].blank?
+    return {:status => false, :error => "Please enter an address"} if address.nil?
 
-    doc = JSON.generate({:location => data['Address']})
+    doc = JSON.generate({:location => address, :options => options[:mq_options]})
     xmlInputString = doc.to_s
-    return true, send_to_map_quest(xmlInputString, options = {}).body
+    return {:status => true, :data => send_to_map_quest(xmlInputString, options).body}
     
   end
   
   private
+  
     def get_authentication
       return get_client_id, get_password
     end
@@ -73,8 +53,8 @@ class MQProxy
       return YAML.load(File.read(@config_path))['appkey']
     end
   
-    def generate_route_json(source, destination)
-      doc = {:locations => [source, destination]}
+    def generate_route_json(source, destination, options)
+      doc = {:locations => [source, destination], :options => options}
       doc = JSON.generate(doc)
       return doc
     end
@@ -94,8 +74,7 @@ class MQProxy
         xmlInputString = addresses.to_s
         
         options[:path] = 'directions/v1/route'
-      
-        return send_to_map_quest(xmlInputString, options)
+        return send_to_map_quest(xmlInputString, options).body
 
     end
   
@@ -112,12 +91,12 @@ class MQProxy
         options[:name] ||= 'www.mapquestapi.com'
         options[:path] ||= 'geocoding/v1/address'
         
-        url = URI.parse("http://"+options[:name]+"/"+options[:path] +"?key=#{get_app_key}")
-        headers = {"Content-Type" => "text/xml; charset=utf-8"}
+        url = URI.parse("http://"+options[:name]+"/"+options[:path] +"?key=#{APP_KEY}")
+        headers = {"Content-Type" => "text/json; charset=utf-8"}
         http = Net::HTTP.new(url.host, url.port)
-        http.set_debug_output $stderr
+        # http.set_debug_output $stderr
         res = http.start {  
-                  http.post(url.request_uri ,xmlInputString,headers)
+          http.post(url.request_uri ,xmlInputString,headers)
         }
 
       rescue Exception => msg
