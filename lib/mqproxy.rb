@@ -1,34 +1,41 @@
-# MQProxy
+# MQProxy - Collection of classes used to access the MapQuest API.
+# Copyright (c) 2011 Christopher Brady
+# Licensed under the same terms as Ruby. No warranty is provided
+
 require 'json'
 require 'net/http'
 
+# Main class for MapQuest API calls 
 class MQProxy
+  # Get directions from one address to the other
   def get_route(source, destination, options = {})
     addresses = generate_route_json(source,destination, options[:mq_options])
     return MQProxyRoute.new(route_addresses(addresses,options))
   end
   
+  # Get directions from one address to the other
   def geocode_address(address, options = {})
-    return {:status => false, :error => "Please enter an address"} if address.nil?
     doc = JSON.generate({:location => address, :options => options[:mq_options]})
     xmlInputString = doc.to_s
     return MQProxyGeocode.new(send_to_map_quest(xmlInputString, options))
   end
   
   private
-  
+    # Format JSON for MapQuest route call
     def generate_route_json(source, destination, options)
       doc = {:locations => [source, destination], :options => options}
       doc = JSON.generate(doc)
       return doc
     end
   
+    # Append proper path and send to MapQuest
     def route_addresses(addresses, options)
-        xmlInputString = addresses.to_s
-        options[:path] ||= 'directions/v1/route'
-        return send_to_map_quest(xmlInputString, options)
+      xmlInputString = addresses.to_s
+      options[:path] ||= 'directions/v1/route'
+      return send_to_map_quest(xmlInputString, options)
     end
   
+    # Generic function to send data to MapQuest and handle response
     def send_to_map_quest(xmlInputString, options)
       options[:method] ||= 'POST'
       options[:port] ||= 80
@@ -50,8 +57,11 @@ class MQProxy
     end
 end
 
+# Class to handle MapQuest directions request response
 class MQProxyRoute
   attr_accessor :time, :distance, :directions, :raw
+  
+  # Initialize MQProxyRoute and set standard data
   def initialize(route)
     @raw = route
     @time = extract_data('time')
@@ -59,13 +69,19 @@ class MQProxyRoute
     @directions = extract_data('legs')
   end
   
-  def extract_data(field)
-    return @raw['route'][field]
-  end
+  private
+  
+    # Extract information from repsonse
+    def extract_data(field)
+      return @raw['route'][field]
+    end
 end
 
+# Class to handle MapQuest geocode request response
 class MQProxyGeocode
   attr_accessor :street, :city, :zip, :county, :state, :country, :lat, :lng, :raw
+  
+  # Initialize MQProxyGeocode and set standard data
   def initialize(geocode)
     @raw = geocode
     @street = extract_data('street')
@@ -77,12 +93,16 @@ class MQProxyGeocode
     @lng,@lat = extract_lat_lng
   end
   
-  def extract_data(field)
-    @raw['results'].first['locations'].first[field]
-  end
+  private
   
-  def extract_lat_lng
-    latLng = @raw['results'].first['locations'].first['latLng']
-    return [latLng['lng'],latLng['lat']]
-  end
+    # Extract information from repsonse
+    def extract_data(field)
+      @raw['results'].first['locations'].first[field]
+    end
+  
+    # Extract latitude and longitude information from response
+    def extract_lat_lng
+      latLng = @raw['results'].first['locations'].first['latLng']
+      return [latLng['lng'],latLng['lat']]
+    end
 end

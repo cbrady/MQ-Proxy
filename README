@@ -3,13 +3,7 @@ MQProxy
 
 	Connect to Map Quest's API to get:
 		* geocode address
-		* get route from one geocoded address to another
-		* get distance between 2 addresses
-		* get county address is located in
-
-
-To initialize:
-	Edit mq_proxy_config.yml in the config directory
+		* get route from one address to another
 
 
 Example
@@ -17,23 +11,60 @@ Example
 
 Set up the addresses:
 
-	address1 = {"PostalCode" => "<zip1>", "Street" => "<street1>", "AdminArea1" => "US", "AdminArea3" => "<state1>", "AdminArea5" => "<city1>"}
+	Addresses can be setup in a Hash:
+		address1 = {:postalCode => "<zip1>", :street => "<street1>", :adminArea1 => "<country1>", :adminArea3 => "<state1>", :adminArea4 => "<county1>",:adminArea5 => "<city1>"}
 
-	address2 = {"PostalCode" => "<zip2>", "Street" => "<street2>", "AdminArea1" => "US", "AdminArea3" => "<state2>", "AdminArea5" => "<city2>"}
-
+		address2 = {:postalCode => "<zip2>", :street => "<street2>", :adminArea1 => "<country2>", :adminArea3 => "<state2>", :adminArea4 => "<county2>",:adminArea5 => "<city2>"}
+	
+	Or as strings:
+		address1 = "<street1> <city1>, <state1> <zip1>"
+		address2 = "<street2> <city2>, <state2> <zip2>"
 
 To get route:
 
 	proxy = MQProxy.new
 	route = proxy.get_route(address1, address2)
 	
-	returns xml directions from Map Quest
+	returns MQProxyRoute object
 	
-To get distance from route:
+	MQProxyRoute gives you access to certain attributes from the MapQuest response:
 	
-	distance = proxy.get_distance(route)
-	
-	returns real number of distance
+		time - total estimated travel time (seconds)
+		distance - total distance of trip (default: miles - can be overwritten in options sent to MapQuest)
+		directions - array of all steps of the trip
+		raw - Hash containing entire response from MapQuest
 
+To get geocode:
 
+	proxy = MQProxy.new
+	code = proxy.geocode_address(address1)
+	
+	return MQProxyGeocode object
+	
+	MQProxyGeocode gives you access to certain attributes from the MapQuest response:
+		street - address' street
+		city - address' city
+		zip - address' zip code
+		county - address' county
+		state - address' state
+		country - address' country
+		lat - address' latitude
+		lgn - address' longitude
+		raw - Hash containing entire response from MapQuest
+		
+		
+Options:
+	
+	To overwrite default MapQuest options pass mq_options Hash to method
+	
+	ex:
+		proxy = MQProxy.new
+		route = MQProxy.get_route(address1, address2, :mq_proxy {:unit => 'k', :routeType => 'shortest'})
+	
+		The this tells MapQuest that you would like the shortest route possible and all of the distances in the response to be in kilometers instead of miles.
+		
+		For a full list of options see the MapQuest API documentation:
+		 
+		[http://www.mapquestapi.com/]
+		
 Copyright (c) 2011 Christopher Brady, released under the MIT license
