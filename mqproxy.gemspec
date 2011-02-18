@@ -7,6 +7,7 @@ Gem::Specification.new do |s|
   s.description = %q{A wrapper for the MapQuest API, provides ability to get route and to geocode an address}
   s.summary = %q{A wrapper for the MapQuest API, provides ability to get route and to geocode an address}
   s.require_paths = ['lib']
+  s.has_rdoc = true
   s.files = ['lib/mqproxy.rb','MIT-LICENSE','Rakefile','README','test/mqproxy_test.rb','test/test_helper.rb']
   s.test_files = ['test/mqproxy_test.rb']
   s.rubygems_version = %q{1.3.1}
