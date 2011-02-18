@@ -26,7 +26,6 @@ Addresses can be setup in a Hash:
 	returns MQProxyRoute object
 	
 	MQProxyRoute gives you access to certain attributes from the MapQuest response:
-	
 		time - total estimated travel time (seconds)
 		distance - total distance of trip (default: miles - can be overwritten in options sent to MapQuest)
 		directions - array of all steps of the trip
