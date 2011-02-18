@@ -36,7 +36,7 @@ Addresses can be setup in a Hash:
 	proxy = MQProxy.new
 	code = proxy.geocode_address(address1)
 	
-	return MQProxyGeocode object
+	returns MQProxyGeocode object
 	
 	MQProxyGeocode gives you access to certain attributes from the MapQuest response:
 		street - address' street
