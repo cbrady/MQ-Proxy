@@ -64,7 +64,7 @@ MQProxyGeocode gives you access to certain attributes from the MapQuest response
 To overwrite default MapQuest options pass mq_options Hash to method
 
 	proxy = MQProxy.new
-	route = MQProxy.get_route(address1, address2, :mq_proxy {:unit => 'k', :routeType => 'shortest'})
+	route = MQProxy.get_route(address1, address2, :mq_proxy => {:unit => 'k', :routeType => 'shortest'})
 
 The this tells MapQuest that you would like the shortest route possible and all of the distances in the response to be in kilometers instead of miles.
 

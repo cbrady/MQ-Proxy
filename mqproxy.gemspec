@@ -3,7 +3,7 @@ Gem::Specification.new do |s|
   s.version = '1.1.0'
   s.author = "Christopher Brady"
   s.email = 'chris@bradynet.net'
-  s.date = %{2011-02-18}
+  s.date = %{2011-02-22}
   s.homepage = %q{http://github.com/cbrady/MQ-Proxy}
   s.description = %q{A wrapper for the MapQuest API, provides ability to get route and to geocode an address}
   s.summary = %q{A wrapper for the MapQuest API, provides ability to get route and to geocode an address}
