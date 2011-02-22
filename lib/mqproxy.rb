@@ -37,10 +37,7 @@ class MQProxy
   
     # Generic function to send data to MapQuest and handle response
     def send_to_map_quest(xmlInputString, options)
-      options[:method] ||= 'POST'
-      options[:port] ||= 80
-      options[:name] ||= 'www.mapquestapi.com'
-      options[:path] ||= 'geocoding/v1/address'
+      options = {:method => 'POST', :port => 80,:name => 'www.mapquestapi.com',:path => 'geocoding/v1/address'}.merge(options)
       url = URI.parse("http://"+options[:name]+"/"+options[:path] +"?key=#{APP_KEY}")
       headers = {"Content-Type" => "text/json; charset=utf-8"}
       http = Net::HTTP.new(url.host, url.port)
@@ -50,7 +47,7 @@ class MQProxy
         }
         doc = JSON.parse(response.body)
         if doc['info']['statuscode'] != 0
-          raise StandardError, "There was an error with your request: #{doc['info']['message']}"
+          raise StandardError, "There was an error with your request: #{doc['info']['messages']}"
         end
         doc
       end

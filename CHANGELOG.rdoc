@@ -1,0 +1,7 @@
+= 1.1.0
+	* fixed bug with error raising
+	* streamlined argument passing
+	* added developer email to gemspec
+
+= 1.0.0
+	*Initial release of gem
